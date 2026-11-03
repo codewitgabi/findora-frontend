@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0f0f13;
+  --color-bg-soft: #16161c;
+  --color-surface: #1b1b22;
+  --color-fg: #f2f1f4;
+  --color-fg-muted: #a3a1ab;
+  --color-border: #2a2a33;
+  --color-accent: #d9694f;
+  --color-accent-soft: rgba(217, 105, 79, 0.14);
+  --color-accent-contrast: #16161c;
+  --color-ring: rgba(217, 105, 79, 0.35);
+
+  --font-sans: system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+}
+
+@keyframes caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-caret {
+  animation: caret-blink 1s steps(1, end) infinite;
+}
