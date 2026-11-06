@@ -5,7 +5,7 @@ import AsyncState from "../components/asyncstate";
 import Pagination from "../components/pagination";
 import StatusPill from "../components/statuspill";
 import { errorMessage } from "../lib/api";
-import { listAdminUsers, setUserStatus } from "../lib/admin";
+import { listAdminUsers, setUserRole, setUserStatus } from "../lib/admin";
 import { formatDate } from "../lib/format";
 import { useApi } from "../lib/useapi";
 
@@ -21,6 +21,19 @@ function AdminUsers() {
     event.preventDefault();
     setQuery(draftQuery.trim());
     setPage(1);
+  }
+
+  async function changeRole(id: string, role: "user" | "officer") {
+    setActionError("");
+    setBusyId(id);
+    try {
+      await setUserRole(id, role);
+    } catch (cause) {
+      setActionError(errorMessage(cause, "Unable to change that role."));
+    } finally {
+      setBusyId("");
+      reload();
+    }
   }
 
   async function change(id: string, status: "active" | "suspended") {
@@ -77,12 +90,19 @@ function AdminUsers() {
                     <span className="font-mono text-[10px] font-normal tracking-widest text-fg-muted uppercase">· {user.role}</span>
                   </p>
                   <p className="mt-0.5 text-xs text-fg-muted">
-                    {user.email} · Joined {formatDate(user.created_at)} · {user.report_count} {user.report_count === 1 ? "report" : "reports"}
+                    {user.email}
+                    {user.student_id && <> · ID {user.student_id}</>} · Joined {formatDate(user.created_at)} · {user.report_count} {user.report_count === 1 ? "report" : "reports"}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <StatusPill status={user.account_status} />
-                  {user.role === "user" &&
+                  {user.role === "user" && user.account_status === "active" && (
+                    <ActionButton label="Make officer" variant="approve" disabled={busyId === user.id} onClick={() => changeRole(user.id, "officer")} />
+                  )}
+                  {user.role === "officer" && (
+                    <ActionButton label="Remove officer" variant="reject" disabled={busyId === user.id} onClick={() => changeRole(user.id, "user")} />
+                  )}
+                  {user.role !== "admin" &&
                     (user.account_status === "active" ? (
                       <ActionButton label="Suspend" variant="reject" disabled={busyId === user.id} onClick={() => change(user.id, "suspended")} />
                     ) : (

@@ -1,10 +1,10 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "../components/appshell";
-import { listCategories } from "../lib/items";
+import { categoryNames, listCategories } from "../lib/items";
 import { useApi } from "../lib/useapi";
 import { ApiError, errorMessage } from "../lib/api";
-import { createFoundItem, uploadFoundItemImage } from "../lib/found-items";
+import { createFoundItem, uploadFoundItemImage, FINDER_KEEPS_IT, HANDED_TO_OPTIONS } from "../lib/found-items";
 
 const inputClass =
   "mt-1.5 w-full border border-border bg-surface px-4 py-3 text-sm text-fg placeholder:text-fg-muted focus:border-accent focus:outline-none";
@@ -23,13 +23,13 @@ function ReportFound() {
   const [itemName, setItemName] = useState("");
   const categories = useApi(listCategories, "categories");
   const [chosenCategory, setCategory] = useState("");
-  const category = chosenCategory || categories.data?.items[0]?.name || "";
+  const category = chosenCategory || categoryNames(categories.data)[0];
   const [color, setColor] = useState("");
   const [description, setDescription] = useState("");
   const [condition, setCondition] = useState("Good");
   const [location, setLocation] = useState("");
   const [dateFound, setDateFound] = useState("");
-  const [handedTo, setHandedTo] = useState("I still have it");
+  const [handedTo, setHandedTo] = useState<string>(FINDER_KEEPS_IT);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -77,7 +77,7 @@ function ReportFound() {
     setIsSubmitting(true);
     try {
       const uploadedImage = await uploadFoundItemImage(photo);
-      await createFoundItem({
+      const report = await createFoundItem({
         item_name: itemName,
         category,
         color,
@@ -88,7 +88,7 @@ function ReportFound() {
         condition,
         handed_to: handedTo,
       });
-      navigate("/dashboard", { state: { submitted: "found" } });
+      navigate(`/items/${report.id}`, { state: { submitted: "found" } });
     } catch (cause) {
       if (cause instanceof ApiError && cause.statusCode === 401) {
         navigate("/login", { state: { returnTo: "/report/found" } });
@@ -122,12 +122,9 @@ function ReportFound() {
               <div>
                 <FieldLabel htmlFor="category">Category</FieldLabel>
                 <select id="category" className={inputClass} value={category} onChange={(event) => setCategory(event.target.value)} required>
-                  <option value="Bags">Bags</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="ID cards & documents">ID cards &amp; documents</option>
-                  <option value="Keys">Keys</option>
-                  <option value="Clothing">Clothing</option>
-                  <option value="Other">Other</option>
+                  {categoryNames(categories.data).map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -181,10 +178,9 @@ function ReportFound() {
             <div>
               <FieldLabel htmlFor="handed-to">Where is the item now?</FieldLabel>
               <select id="handed-to" className={inputClass} value={handedTo} onChange={(event) => setHandedTo(event.target.value)} required>
-                <option value="I still have it">I still have it</option>
-                <option value="Security office">Handed to the security office</option>
-                <option value="Library front desk">Handed to the library front desk</option>
-                <option value="Other office">Handed to another campus office</option>
+                {HANDED_TO_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
           </section>

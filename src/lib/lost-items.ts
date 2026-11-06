@@ -11,7 +11,10 @@ export interface LostItemInput {
   category: string;
   color: string;
   description: string;
-  photo: string;
+  /** Optional: many owners have no photo of what they lost. */
+  photo?: string | null;
+  /** Private details that help verify a claim. Only the owner and staff see them. */
+  identifying_marks?: string | null;
   last_seen_location: string;
   date_lost: string;
 }

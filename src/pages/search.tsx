@@ -142,6 +142,16 @@ function Search() {
               <option value="found">Found only</option>
               <option value="lost">Lost only</option>
             </select>
+            <select
+              aria-label="Status"
+              value={draft.status ?? ""}
+              onChange={(event) => updateDraft("status", event.target.value)}
+              className={fieldClass}
+            >
+              <option value="">Any status</option>
+              <option value="active">Open</option>
+              <option value="matched">Has a possible match</option>
+            </select>
             <input
               type="text"
               aria-label="Color"

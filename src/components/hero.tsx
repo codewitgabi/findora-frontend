@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useTypewriter } from "../lib/usetypewriter";
 
 const avatars = [
@@ -95,8 +96,8 @@ function Hero() {
         </div>
 
         <div className="mt-10">
-          <a
-            href="#get-started"
+          <Link
+            to="/register"
             className="inline-flex items-center gap-2 rounded-full bg-fg px-6 py-3.5 text-sm font-semibold text-bg transition-opacity hover:opacity-85"
           >
             Get started
@@ -113,7 +114,7 @@ function Hero() {
             >
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </a>
+          </Link>
         </div>
       </div>
     </section>

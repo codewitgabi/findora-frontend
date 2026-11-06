@@ -41,13 +41,31 @@ function Claims() {
                     </Link>
                     <p className="mt-0.5 text-xs text-fg-muted">Submitted {formatDate(claim.created_at)}</p>
                   </div>
-                  <StatusPill status={claim.status} />
+                  <StatusPill status={claim.handover_status ?? claim.status} />
                 </div>
                 <p className="mt-3 text-sm text-fg-muted">"{claim.evidence_text}"</p>
+                {claim.status === "approved" && claim.pickup_location && (
+                  <div className="mt-3 border border-accent px-4 py-3">
+                    <p className="font-mono text-[10px] tracking-widest text-accent uppercase">
+                      {claim.handover_status === "collected" ? "Collected from" : "Pickup location"}
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold">{claim.pickup_location}</p>
+                  </div>
+                )}
                 {claim.admin_note && <p className="mt-2 text-xs text-fg-muted">{claim.admin_note}</p>}
                 {!claim.admin_note && claim.status === "pending" && (
                   <p className="mt-2 text-xs text-fg-muted">An administrator is reviewing your evidence.</p>
                 )}
+                <Link
+                  to={`/claims/${claim.id}`}
+                  className="mt-3 inline-block text-xs font-semibold text-accent underline-offset-4 hover:underline"
+                >
+                  {claim.handover_status === "awaiting_pickup"
+                    ? "Arrange pickup and confirm collection →"
+                    : claim.status === "pending"
+                      ? "Message the admin →"
+                      : "View conversation →"}
+                </Link>
               </div>
             ))}
           </AsyncState>

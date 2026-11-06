@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import AppShell from "../components/appshell";
 import AsyncState from "../components/asyncstate";
 import Pagination from "../components/pagination";
@@ -29,6 +30,8 @@ function icon(type: AppNotification["type"]): ReactNode {
           <path d="m9 12 2 2 4-4" />
         </>
       );
+    case "message":
+      return <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />;
     case "status":
       return (
         <>
@@ -39,10 +42,30 @@ function icon(type: AppNotification["type"]): ReactNode {
   }
 }
 
+/** Where a notification leads: its claim thread first, otherwise the item. */
+function targetOf(notification: AppNotification) {
+  if (notification.claim_id) return `/claims/${notification.claim_id}`;
+  if (notification.item_id) return `/items/${notification.item_id}`;
+  return null;
+}
+
 function Notifications() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState("");
   const { data, error, loading, reload, mutate } = useApi(() => listNotifications(page, PAGE_SIZE), `notifications:${page}`);
+
+  async function handleOpen(notification: AppNotification) {
+    const target = targetOf(notification);
+    if (!target) {
+      await handleRead(notification);
+      return;
+    }
+    // Leaving the page anyway: a failed read-mark just leaves it unread, so don't
+    // set an error nobody will see.
+    if (!notification.is_read) await markNotificationRead(notification.id).catch(() => {});
+    navigate(target);
+  }
 
   async function handleRead(notification: AppNotification) {
     if (notification.is_read) return;
@@ -109,7 +132,7 @@ function Notifications() {
               <button
                 type="button"
                 key={notification.id}
-                onClick={() => handleRead(notification)}
+                onClick={() => handleOpen(notification)}
                 className="flex w-full gap-4 border-b border-border py-5 text-left transition-colors hover:bg-bg-soft"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-border text-accent">
@@ -143,6 +166,11 @@ function Notifications() {
                   <p className="mt-1 text-sm text-fg-muted">
                     {notification.message}
                   </p>
+                  {targetOf(notification) && (
+                    <p className="mt-2 text-xs font-semibold text-accent">
+                      {notification.claim_id ? "Open claim" : "View report"} →
+                    </p>
+                  )}
                 </div>
 
                 {!notification.is_read && (

@@ -8,9 +8,11 @@ import StatusPill from "../components/statuspill";
 import { errorMessage } from "../lib/api";
 import { listAdminReports, setReportStatus } from "../lib/admin";
 import { formatDate } from "../lib/format";
+import { heldAtLabel } from "../lib/found-items";
+import { OPEN_STATUSES } from "../lib/me";
 import { useApi } from "../lib/useapi";
 
-const tabs = ["all", "pending", "active", "matched", "resolved", "rejected"] as const;
+const tabs = ["all", "pending", "active", "matched", "claimed", "resolved", "rejected", "closed"] as const;
 
 function AdminReports() {
   const [tab, setTab] = useState<(typeof tabs)[number]>("all");
@@ -19,6 +21,9 @@ function AdminReports() {
   const [page, setPage] = useState(1);
   const [busyId, setBusyId] = useState("");
   const [actionError, setActionError] = useState("");
+  const [removingId, setRemovingId] = useState("");
+  const [removeNote, setRemoveNote] = useState("");
+  const [duplicateOf, setDuplicateOf] = useState("");
   const { data, error, loading, reload } = useApi(
     () => listAdminReports({ status: tab === "all" ? undefined : tab, q: query, page }),
     `admin-reports:${tab}:${query}:${page}`,
@@ -35,11 +40,25 @@ function AdminReports() {
     setPage(1);
   }
 
-  async function change(id: string, status: "active" | "rejected" | "resolved") {
+  function startRemoving(id: string) {
+    setRemovingId(id);
+    setRemoveNote("");
+    setDuplicateOf("");
+  }
+
+  async function change(id: string, status: "active" | "rejected" | "resolved" | "closed") {
     setActionError("");
     setBusyId(id);
     try {
-      await setReportStatus(id, status);
+      if (status === "closed") {
+        // Accept a bare id or any pasted report link (/items/:id, /items/:id/edit, ?query, #hash).
+        const input = duplicateOf.trim();
+        const original = input ? (input.match(/\b[0-9a-f]{24}\b/i)?.[0] ?? input) : undefined;
+        await setReportStatus(id, status, removeNote.trim(), original);
+        setRemovingId("");
+      } else {
+        await setReportStatus(id, status);
+      }
     } catch (cause) {
       setActionError(errorMessage(cause, "Unable to update that report."));
     } finally {
@@ -80,7 +99,7 @@ function AdminReports() {
                   : "border-border text-fg-muted hover:border-accent hover:text-accent"
               }`}
             >
-              {name === "matched" ? "Possible match" : name}
+              {name === "matched" ? "Possible match" : name === "claimed" ? "Awaiting pickup" : name}
             </button>
           ))}
         </div>
@@ -98,7 +117,7 @@ function AdminReports() {
             {data?.items.map((report) => (
               <div
                 key={report.id}
-                className="flex flex-col gap-3 border-b border-border py-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 border-b border-border py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <Link to={`/items/${report.id}`} className="text-sm font-semibold underline-offset-4 hover:text-accent hover:underline">
@@ -107,6 +126,9 @@ function AdminReports() {
                   <span className="font-mono text-[10px] tracking-widest text-fg-muted uppercase">· {report.report_type}</span>
                   <p className="mt-0.5 text-xs text-fg-muted">
                     {report.reporter_name} · {report.location} · {formatDate(report.created_at)}
+                    {report.handed_to && (
+                      <> · {heldAtLabel(report.handed_to)}</>
+                    )}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -117,10 +139,41 @@ function AdminReports() {
                       <ActionButton label="Reject" variant="reject" disabled={busyId === report.id} onClick={() => change(report.id, "rejected")} />
                     </>
                   )}
+                  {report.status === "claimed" && (
+                    <ActionButton label="Mark collected" variant="approve" disabled={busyId === report.id} onClick={() => change(report.id, "resolved")} />
+                  )}
+                  {OPEN_STATUSES.includes(report.status) && removingId !== report.id && (
+                    <ActionButton label="Remove" variant="reject" disabled={busyId === report.id} onClick={() => startRemoving(report.id)} />
+                  )}
                   {(report.status === "active" || report.status === "matched") && (
                     <ActionButton label="Mark resolved" variant="approve" disabled={busyId === report.id} onClick={() => change(report.id, "resolved")} />
                   )}
                 </div>
+                {removingId === report.id && (
+                  <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+                    <input
+                      type="text"
+                      value={removeNote}
+                      onChange={(event) => setRemoveNote(event.target.value)}
+                      maxLength={1000}
+                      placeholder="Reason shown to the reporter"
+                      aria-label="Reason for removal"
+                      className="border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-muted focus:border-accent focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={duplicateOf}
+                      onChange={(event) => setDuplicateOf(event.target.value)}
+                      placeholder="Duplicate of (report link or id, optional)"
+                      aria-label="Duplicate of"
+                      className="border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-muted focus:border-accent focus:outline-none"
+                    />
+                    <div className="flex gap-2">
+                      <ActionButton label="Confirm removal" variant="reject" disabled={busyId === report.id} onClick={() => change(report.id, "closed")} />
+                      <ActionButton label="Cancel" variant="reject" onClick={() => setRemovingId("")} />
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </AsyncState>

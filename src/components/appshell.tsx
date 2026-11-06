@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import Logo from "./logo";
-import { getCurrentUser, logoutUser } from "../lib/auth";
+import { getCurrentUser, isStaff, signOut } from "../lib/auth";
 import { listNotifications, NOTIFICATIONS_CHANGED } from "../lib/me";
 
 const NOTIFICATION_POLL_MS = 60_000;
@@ -18,9 +18,9 @@ const adminLinks = [
   { label: "Overview", href: "/admin" },
   { label: "Reports", href: "/admin/reports" },
   { label: "Claims", href: "/admin/claims" },
-  { label: "Users", href: "/admin/users" },
-  { label: "Categories", href: "/admin/categories" },
-  { label: "Audit log", href: "/admin/audit-log" },
+  { label: "Users", href: "/admin/users", adminOnly: true },
+  { label: "Categories", href: "/admin/categories", adminOnly: true },
+  { label: "Audit log", href: "/admin/audit-log", adminOnly: true },
   { label: "Back to app", href: "/dashboard" },
 ];
 
@@ -34,9 +34,9 @@ function AppShell({
   const user = getCurrentUser();
   const links =
     variant === "admin"
-      ? adminLinks
-      : user?.role === "admin"
-        ? [...userLinks, { label: "Admin", href: "/admin" }]
+      ? adminLinks.filter((link) => !link.adminOnly || user?.role === "admin")
+      : isStaff(user?.role)
+        ? [...userLinks, { label: user?.role === "admin" ? "Admin" : "Staff", href: "/admin" }]
         : userLinks;
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -77,7 +77,7 @@ function AppShell({
             <Logo to={variant === "admin" ? "/admin" : "/dashboard"} />
             {variant === "admin" && (
               <span className="border border-accent px-2 py-0.5 font-mono text-[10px] tracking-widest text-accent uppercase">
-                Admin
+                {user?.role === "officer" ? "Officer" : "Admin"}
               </span>
             )}
           </div>
@@ -139,7 +139,7 @@ function AppShell({
             <button
               type="button"
               onClick={() => {
-                logoutUser();
+                signOut();
                 window.location.href = "/login";
               }}
               className="text-xs text-fg-muted transition-colors hover:text-fg"

@@ -22,7 +22,7 @@ function Navbar() {
   }
 
   return (
-    <header id="top" className="sticky top-0 z-50 border-b border-border bg-bg">
+    <header className="sticky top-0 z-50 border-b border-border bg-bg">
       <div className="mx-auto flex h-16 max-w-7xl items-stretch px-4 sm:px-6 lg:px-8">
         <a href="#top" className="flex items-center gap-2 pr-4 sm:pr-6">
           <span className="flex h-7 w-7 items-center justify-center border border-fg bg-fg text-bg">
@@ -70,7 +70,7 @@ function Navbar() {
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </button>
-            {featuresOpen && <FeaturesMenu />}
+            {featuresOpen && <FeaturesMenu onNavigate={() => setFeaturesOpen(false)} />}
           </div>
 
           {links.map((link) => (
@@ -154,13 +154,13 @@ function Navbar() {
             >
               Sign in
             </Link>
-            <a
-              href="/register"
+            <Link
+              to="/register"
               onClick={() => setMobileOpen(false)}
               className="border border-fg bg-fg px-4 py-2 text-center text-sm font-semibold text-bg"
             >
               Get started
-            </a>
+            </Link>
           </div>
         </nav>
       )}

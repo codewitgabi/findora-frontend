@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 function Cta() {
   return (
     <section id="for-campuses" className="border-t border-border bg-bg-soft">
@@ -15,9 +17,8 @@ function Cta() {
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <a
-            id="get-started"
-            href="#top"
+          <Link
+            to="/register"
             className="inline-flex items-center gap-2 rounded-full bg-fg px-6 py-3.5 text-sm font-semibold text-bg transition-opacity hover:opacity-85"
           >
             Create your account
@@ -33,7 +34,7 @@ function Cta() {
             >
               <path d="M9 6l6 6-6 6" />
             </svg>
-          </a>
+          </Link>
           <a
             href="#features"
             className="text-sm font-medium text-fg underline underline-offset-4"

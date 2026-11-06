@@ -10,6 +10,7 @@ const inputClass = "mt-1.5 w-full border border-border bg-surface px-4 py-3 text
 function Register() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState(""); const [email, setEmail] = useState("");
+  const [studentId, setStudentId] = useState("");
   const [password, setPassword] = useState(""); const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState(""); const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -18,11 +19,15 @@ function Register() {
     if (password !== confirmPassword) { setError("Passwords do not match."); return; }
     setIsSubmitting(true);
     try {
-      const user = await registerUser({ full_name: fullName, email, password });
+      const user = await registerUser({ full_name: fullName, email, password, student_id: studentId.trim() || undefined });
       storeCurrentUser({ full_name: user.full_name, email: user.email, role: user.role });
       navigate("/login", { state: { registered: true } });
     }
-    catch (cause) { setError(cause instanceof ApiError ? cause.message : "Unable to create your account."); }
+    catch (cause) {
+      // Domain and ID problems come back as field errors with a specific message.
+      const fieldMessage = cause instanceof ApiError ? cause.fieldErrors[0]?.message : undefined;
+      setError(fieldMessage ?? (cause instanceof ApiError ? cause.message : "Unable to create your account."));
+    }
     finally { setIsSubmitting(false); }
   }
 
@@ -34,6 +39,7 @@ function Register() {
       <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
         <div><label htmlFor="name" className="font-mono text-[10px] tracking-widest text-fg-muted uppercase">Full name</label><input id="name" type="text" autoComplete="name" placeholder="Jordan Ade" className={inputClass} value={fullName} onChange={(event) => setFullName(event.target.value)} required /></div>
         <div><label htmlFor="email" className="font-mono text-[10px] tracking-widest text-fg-muted uppercase">Campus email</label><input id="email" type="email" autoComplete="email" placeholder="you@campus.edu" className={inputClass} value={email} onChange={(event) => setEmail(event.target.value)} required /></div>
+        <div><label htmlFor="student-id" className="font-mono text-[10px] tracking-widest text-fg-muted uppercase">Student / staff ID <span className="normal-case tracking-normal">(optional)</span></label><input id="student-id" type="text" autoComplete="off" placeholder="e.g. CSC/2021/001" className={inputClass} value={studentId} onChange={(event) => setStudentId(event.target.value)} maxLength={40} /></div>
         <div><label htmlFor="password" className="font-mono text-[10px] tracking-widest text-fg-muted uppercase">Password</label><PasswordInput id="password" autoComplete="new-password" placeholder="Password" className={inputClass} value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required /></div>
         <div><label htmlFor="confirm-password" className="font-mono text-[10px] tracking-widest text-fg-muted uppercase">Confirm password</label><PasswordInput id="confirm-password" autoComplete="new-password" placeholder="Confirm password" className={inputClass} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} required /></div>
         <button type="submit" disabled={isSubmitting} className="w-full border border-fg bg-fg px-4 py-3 text-sm font-semibold text-bg transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-60">{isSubmitting ? "Creating account..." : "Create account"}</button>

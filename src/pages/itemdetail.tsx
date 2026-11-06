@@ -1,16 +1,40 @@
-import { useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import AppShell from "../components/appshell";
 import AsyncState from "../components/asyncstate";
 import StatusPill from "../components/statuspill";
 import { errorMessage } from "../lib/api";
 import { formatDate, percent } from "../lib/format";
-import { getItem, submitClaim } from "../lib/items";
+import { closeItem, getItem, submitClaim, type CloseReason } from "../lib/items";
+import { FINDER_KEEPS_IT } from "../lib/found-items";
+import { OPEN_STATUSES } from "../lib/me";
 import { useApi } from "../lib/useapi";
+
+
+const closeReasonText: Record<CloseReason, string> = {
+  found_it: "The reporter found the item themselves.",
+  no_longer_needed: "The reporter closed this report.",
+  other: "The reporter closed this report.",
+  removed_by_admin: "This report was removed by an administrator.",
+  duplicate: "This report was closed as a duplicate of another report.",
+};
 
 function ItemDetail() {
   const { id = "" } = useParams();
-  const { data: item, error, loading, reload } = useApi(() => getItem(id), `item:${id}`);
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Show the "submitted" banner once, then drop it from history so a reload or Back
+  // doesn't claim the report is still awaiting review.
+  const [submitted] = useState((location.state as { submitted?: "lost" | "found" } | null)?.submitted);
+  useEffect(() => {
+    if (submitted) navigate(location.pathname, { replace: true, state: null });
+  }, [submitted, navigate, location.pathname]);
+  const [closing, setClosing] = useState(false);
+  const [closeReason, setCloseReason] = useState<"found_it" | "no_longer_needed" | "other">("found_it");
+  const [closeNote, setCloseNote] = useState("");
+  const [closeError, setCloseError] = useState("");
+  const [isClosingBusy, setIsClosingBusy] = useState(false);
+  const { data: item, error, loading, reload, mutate } = useApi(() => getItem(id), `item:${id}`);
   const [evidence, setEvidence] = useState("");
   const [claimError, setClaimError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,7 +54,23 @@ function ItemDetail() {
     }
   }
 
+  async function handleClose(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCloseError("");
+    setIsClosingBusy(true);
+    try {
+      const updated = await closeItem(id, closeReason, closeNote.trim());
+      setClosing(false);
+      mutate(() => updated);
+    } catch (cause) {
+      setCloseError(errorMessage(cause, "Unable to close this report."));
+    } finally {
+      setIsClosingBusy(false);
+    }
+  }
+
   const isLost = item?.report_type === "lost";
+  const isOpen = Boolean(item && OPEN_STATUSES.includes(item.status));
   const isClaimable = item && !item.is_owner && (item.status === "active" || item.status === "matched");
   const claimStatus = item?.my_claim?.status;
   const canClaim = isClaimable && (!claimStatus || claimStatus === "rejected");
@@ -56,6 +96,13 @@ function ItemDetail() {
           </svg>
           Back to search
         </Link>
+
+        {submitted && (
+          <p role="status" className="mt-6 border border-accent px-4 py-3 text-sm text-accent">
+            Your {submitted} report was submitted for review. It becomes searchable once an administrator approves it, and we'll
+            notify you about matches. Possible matches already on file are listed below.
+          </p>
+        )}
 
         <AsyncState loading={loading} error={error} onRetry={reload}>
           {item && (
@@ -98,6 +145,9 @@ function ItemDetail() {
                       { label: isLost ? "Last seen" : "Found at", value: item.location },
                       { label: isLost ? "Date lost" : "Date found", value: formatDate(item.date) },
                       ...(item.condition ? [{ label: "Condition", value: item.condition }] : []),
+                      ...(item.handed_to
+                        ? [{ label: "Held at", value: item.handed_to === FINDER_KEEPS_IT ? "With the finder" : item.handed_to }]
+                        : []),
                     ].map((field) => (
                       <div key={field.label}>
                         <dt className="font-mono text-[10px] tracking-widest text-fg-muted uppercase">
@@ -113,6 +163,78 @@ function ItemDetail() {
                     <p className="mt-2 text-sm whitespace-pre-line text-fg-muted">{item.description}</p>
                   </div>
 
+                  {item.identifying_marks && (
+                    <div className="mt-4 border border-dashed border-border px-4 py-3">
+                      <h2 className="font-mono text-[10px] tracking-widest text-fg-muted uppercase">
+                        Identifying marks · private to you and campus staff
+                      </h2>
+                      <p className="mt-1 text-sm whitespace-pre-line">{item.identifying_marks}</p>
+                    </div>
+                  )}
+
+                  {item.status === "closed" && item.close_reason && (
+                    <p className="mt-4 border border-border px-4 py-3 text-sm text-fg-muted">{closeReasonText[item.close_reason]}</p>
+                  )}
+
+                  {item.is_owner && isOpen && !closing && (
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <Link
+                        to={`/items/${item.id}/edit`}
+                        className="border border-fg px-4 py-2 text-sm font-semibold transition-colors hover:bg-fg hover:text-bg"
+                      >
+                        Edit report
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setClosing(true)}
+                        className="border border-border px-4 py-2 text-sm font-semibold text-fg-muted transition-colors hover:border-fg hover:text-fg"
+                      >
+                        Close report
+                      </button>
+                    </div>
+                  )}
+
+                  {item.is_owner && isOpen && closing && (
+                    <form className="mt-6 space-y-3 border border-border p-4" onSubmit={handleClose}>
+                      <p className="text-sm font-semibold">Close this report?</p>
+                      <p className="text-xs text-fg-muted">
+                        It leaves search, and any pending claims on it are closed. This can't be undone.
+                      </p>
+                      {closeError && <p role="alert" className="text-sm text-accent">{closeError}</p>}
+                      <select
+                        aria-label="Reason"
+                        value={closeReason}
+                        onChange={(event) => setCloseReason(event.target.value as typeof closeReason)}
+                        className="w-full border border-border bg-surface px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+                      >
+                        <option value="found_it">{isLost ? "I found it myself" : "The owner already has it"}</option>
+                        <option value="no_longer_needed">I no longer need this report</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <input
+                        type="text"
+                        value={closeNote}
+                        onChange={(event) => setCloseNote(event.target.value)}
+                        maxLength={500}
+                        placeholder="Optional note"
+                        aria-label="Note"
+                        className="w-full border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-muted focus:border-accent focus:outline-none"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={isClosingBusy}
+                          className="border border-fg bg-fg px-4 py-2 text-sm font-semibold text-bg disabled:opacity-60"
+                        >
+                          {isClosingBusy ? "Closing..." : "Close report"}
+                        </button>
+                        <button type="button" onClick={() => setClosing(false)} className="px-4 py-2 text-sm text-fg-muted hover:text-fg">
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
                   <p className="mt-6 text-xs text-fg-muted">
                     Reported by a verified campus user · contact is only shared
                     after a claim is approved.
@@ -126,28 +248,100 @@ function ItemDetail() {
                     {item.is_owner ? "Your report" : "Submit a claim"}
                   </h2>
 
-                  {item.is_owner && (
+                  {item.is_owner && !item.handover && (
                     <p className="mt-2 text-sm text-fg-muted">
                       {item.status === "pending"
                         ? "This report is waiting for admin review. It becomes searchable once approved."
-                        : "Claims from other users are reviewed by an administrator."}
+                        : item.status === "resolved"
+                          ? "This report is resolved."
+                          : item.status === "closed"
+                            ? "This report is closed."
+                            : item.status === "rejected"
+                              ? "This report was not approved."
+                          : "Claims from other users are reviewed by an administrator. We'll notify you when someone comes forward."}
                     </p>
                   )}
 
-                  {!item.is_owner && claimStatus === "pending" && (
+                  {item.handover && (
+                    <div className="mt-2 border border-accent p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-mono text-[10px] tracking-widest text-accent uppercase">
+                          {item.handover.handover_status === "collected" ? "Handed over" : "Claim approved"}
+                        </p>
+                        {item.handover.handover_status && <StatusPill status={item.handover.handover_status} />}
+                      </div>
+                      {item.handover.pickup_location && (
+                        <p className="mt-2 text-sm">
+                          Pickup location: <span className="font-semibold">{item.handover.pickup_location}</span>
+                        </p>
+                      )}
+                      <Link
+                        to={`/claims/${item.handover.claim_id}`}
+                        className="mt-3 inline-block text-sm font-semibold text-accent underline underline-offset-4"
+                      >
+                        {item.handover.handover_status === "awaiting_pickup" ? "Arrange the handover" : "View conversation"}
+                      </Link>
+                    </div>
+                  )}
+
+                  {item.is_owner && item.matched_items.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-semibold">Possible matches for your report</h3>
+                      <p className="mt-1 text-xs text-fg-muted">
+                        {isLost
+                          ? "If one of these is yours, open it and submit a claim with details only you would know."
+                          : "These lost reports may describe this item. Their owners have been notified."}
+                      </p>
+                      <div className="mt-3 border-t border-border">
+                        {item.matched_items.map((match) => (
+                          <Link
+                            key={match.id}
+                            to={`/items/${match.id}`}
+                            className="flex items-center justify-between gap-4 border-b border-border py-3 transition-colors hover:bg-bg-soft"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{match.item_name}</p>
+                              <p className="mt-0.5 text-xs text-fg-muted">
+                                {match.report_type === "found" ? "Found" : "Lost"} · {match.location}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-xs font-semibold text-accent">{isLost ? "Review & claim →" : "View →"}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!item.is_owner && item.my_claim && claimStatus === "pending" && (
                     <p role="status" className="mt-2 border border-accent px-4 py-3 text-sm text-accent">
                       Your claim is pending review.{" "}
-                      <Link to="/claims" className="font-semibold underline underline-offset-4">Track it</Link>
+                      <Link to={`/claims/${item.my_claim.id}`} className="font-semibold underline underline-offset-4">
+                        Track it or message the admin
+                      </Link>
                     </p>
                   )}
-                  {!item.is_owner && claimStatus === "approved" && (
-                    <p role="status" className="mt-2 border border-accent px-4 py-3 text-sm text-accent">
-                      Your claim was approved.{" "}
-                      <Link to="/claims" className="font-semibold underline underline-offset-4">See collection details</Link>
-                    </p>
+                  {!item.is_owner && item.my_claim && claimStatus === "approved" && (
+                    <div role="status" className="mt-2 border border-accent p-4 text-sm">
+                      <p className="font-semibold text-accent">
+                        {item.my_claim.handover_status === "collected" ? "You collected this item." : "Your claim was approved."}
+                      </p>
+                      {item.my_claim.pickup_location && (
+                        <p className="mt-1">
+                          {item.my_claim.handover_status === "collected" ? "Collected from" : "Collect it at"}:{" "}
+                          <span className="font-semibold">{item.my_claim.pickup_location}</span>
+                        </p>
+                      )}
+                      <Link to={`/claims/${item.my_claim.id}`} className="mt-2 inline-block font-semibold text-accent underline underline-offset-4">
+                        {item.my_claim.handover_status === "awaiting_pickup" ? "Pickup details and confirmation" : "View conversation"}
+                      </Link>
+                    </div>
                   )}
                   {!item.is_owner && !isClaimable && !claimStatus && (
-                    <p className="mt-2 text-sm text-fg-muted">This item can't be claimed right now.</p>
+                    <p className="mt-2 text-sm text-fg-muted">
+                      {item.status === "claimed"
+                        ? "A claim on this item was approved and it is awaiting pickup."
+                        : "This item can't be claimed right now."}
+                    </p>
                   )}
 
                   {canClaim && (
@@ -186,7 +380,9 @@ function ItemDetail() {
                 </div>
 
                 <div>
-                  <h2 className="text-lg font-semibold">Other possible matches</h2>
+                  <h2 className="text-lg font-semibold">
+                    {item.status === "pending" ? "Possible matches already on file" : "Other possible matches"}
+                  </h2>
                   {item.similar_items.length === 0 ? (
                     <p className="mt-5 text-sm text-fg-muted">No similar items found yet.</p>
                   ) : (

@@ -6,13 +6,19 @@ import AsyncState from "../components/asyncstate";
 import { errorMessage } from "../lib/api";
 import { formatDate, timeAgo } from "../lib/format";
 import { getAdminStats, listAdminClaims, listAdminReports, listAuditLogs, setReportStatus } from "../lib/admin";
+import { getCurrentUser } from "../lib/auth";
 import { useApi } from "../lib/useapi";
 
 function Admin() {
   const stats = useApi(getAdminStats, "stats");
   const reports = useApi(() => listAdminReports({ status: "pending", page_size: 5 }), "pending-reports");
   const claims = useApi(() => listAdminClaims({ status: "pending", page_size: 5 }), "pending-claims");
-  const audit = useApi(() => listAuditLogs({}), "audit-preview");
+  // Officers can't read the audit log, so only admins load the preview.
+  const isAdmin = getCurrentUser()?.role === "admin";
+  const audit = useApi(
+    () => (isAdmin ? listAuditLogs({}) : Promise.resolve({ items: [], total: 0, page: 1, page_size: 20 })),
+    `audit-preview:${isAdmin}`,
+  );
   const [busyId, setBusyId] = useState("");
   const [actionError, setActionError] = useState("");
 
@@ -20,6 +26,7 @@ function Admin() {
     { label: "Pending reports", value: stats.data?.pending_reports },
     { label: "Pending claims", value: stats.data?.pending_claims },
     { label: "Flagged items", value: stats.data?.flagged_items },
+    { label: "Awaiting pickup", value: stats.data?.awaiting_pickup },
     { label: "Resolved this week", value: stats.data?.resolved_this_week },
   ];
 
@@ -52,9 +59,9 @@ function Admin() {
         {stats.error && (
           <p role="alert" className="mt-6 border border-accent px-4 py-3 text-sm text-accent">{stats.error}</p>
         )}
-        <div className="mt-8 grid grid-cols-2 divide-x divide-y divide-border border border-border sm:grid-cols-4 sm:divide-y-0">
+        <div className="mt-8 grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-5">
           {cards.map((stat) => (
-            <div key={stat.label} className="px-4 py-6 text-center">
+            <div key={stat.label} className="bg-bg px-4 py-6 text-center last:col-span-2 sm:last:col-span-1">
               <p className="font-mono text-2xl font-bold">{stat.value ?? "–"}</p>
               <p className="mt-1 text-xs text-fg-muted">{stat.label}</p>
             </div>
@@ -138,6 +145,7 @@ function Admin() {
           </div>
         </div>
 
+        {isAdmin && (
         <div className="mt-12">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Audit log</h2>
@@ -165,6 +173,7 @@ function Admin() {
             </AsyncState>
           </div>
         </div>
+        )}
       </div>
     </AppShell>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "../components/appshell";
-import { listCategories } from "../lib/items";
+import { categoryNames, listCategories } from "../lib/items";
 import { useApi } from "../lib/useapi";
 import { ApiError, errorMessage } from "../lib/api";
 import { createLostItem, uploadLostItemImage } from "../lib/lost-items";
@@ -23,9 +23,10 @@ function Report() {
   const [itemName, setItemName] = useState("");
   const categories = useApi(listCategories, "categories");
   const [chosenCategory, setCategory] = useState("");
-  const category = chosenCategory || categories.data?.items[0]?.name || "";
+  const category = chosenCategory || categoryNames(categories.data)[0];
   const [color, setColor] = useState("");
   const [description, setDescription] = useState("");
+  const [identifyingMarks, setIdentifyingMarks] = useState("");
   const [location, setLocation] = useState("");
   const [dateLost, setDateLost] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
@@ -67,24 +68,22 @@ function Report() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    if (!photo) {
-      setError("Please add a photo of the lost item.");
-      return;
-    }
-
     setIsSubmitting(true);
     try {
-      const uploadedImage = await uploadLostItemImage(photo);
-      await createLostItem({
+      // A photo is optional for lost items; without one, matching uses the details alone.
+      const uploadedImage = photo ? await uploadLostItemImage(photo) : null;
+      const report = await createLostItem({
         item_name: itemName,
         category,
         color,
         description,
-        photo: uploadedImage.url,
+        photo: uploadedImage?.url ?? null,
+        identifying_marks: identifyingMarks.trim() || null,
         last_seen_location: location,
         date_lost: dateLost,
       });
-      navigate("/dashboard", { state: { submitted: "lost" } });
+      // The report page lists possible matches straight away.
+      navigate(`/items/${report.id}`, { state: { submitted: "lost" } });
     } catch (cause) {
       if (cause instanceof ApiError && cause.statusCode === 401) {
         navigate("/login", { state: { returnTo: "/report" } });
@@ -116,12 +115,9 @@ function Report() {
               <div>
                 <FieldLabel htmlFor="category">Category</FieldLabel>
                 <select id="category" className={inputClass} value={category} onChange={(event) => setCategory(event.target.value)} required>
-                  <option value="Bags">Bags</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="ID cards & documents">ID cards &amp; documents</option>
-                  <option value="Keys">Keys</option>
-                  <option value="Clothing">Clothing</option>
-                  <option value="Other">Other</option>
+                  {categoryNames(categories.data).map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -130,13 +126,19 @@ function Report() {
               </div>
             </div>
             <div>
-              <FieldLabel htmlFor="description">Description &amp; identifying marks</FieldLabel>
-              <textarea id="description" rows={4} placeholder="Brand, stickers, scratches, contents — anything that helps confirm ownership." className={`${inputClass} resize-none`} value={description} onChange={(event) => setDescription(event.target.value)} minLength={1} maxLength={2000} required />
+              <FieldLabel htmlFor="description">Description</FieldLabel>
+              <textarea id="description" rows={4} placeholder="Brand, model, size, what it looks like. This is shown to other users." className={`${inputClass} resize-none`} value={description} onChange={(event) => setDescription(event.target.value)} minLength={1} maxLength={2000} required />
+            </div>
+            <div>
+              <FieldLabel htmlFor="identifying-marks">Identifying marks (private)</FieldLabel>
+              <textarea id="identifying-marks" rows={2} placeholder="Scratches, stickers, engraving, what was inside. Only you and campus staff see this." className={`${inputClass} resize-none`} value={identifyingMarks} onChange={(event) => setIdentifyingMarks(event.target.value)} maxLength={500} />
+              <p className="mt-1.5 text-xs text-fg-muted">Keep the details that prove it's yours out of the public description.</p>
             </div>
           </section>
 
           <section className="space-y-5 py-8">
-            <h2 className="text-lg font-semibold">Photo</h2>
+            <h2 className="text-lg font-semibold">Photo <span className="text-sm font-normal text-fg-muted">(optional)</span></h2>
+            <p className="text-sm text-fg-muted">A photo of the item, or one like it, makes image matching much more accurate. No photo? Matching uses the details above.</p>
             <label htmlFor="photo" className="flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-border bg-bg-soft px-4 py-10 text-center transition-colors hover:border-accent">
               {preview ? (
                 <img src={preview} alt="Preview of the selected photo" className="max-h-64 w-auto max-w-full border border-border object-contain" />
@@ -148,7 +150,7 @@ function Report() {
               )}
               <p className="text-sm text-fg-muted">{photo ? <>{photo.name} · <span className="font-medium text-fg underline underline-offset-4">Replace</span></> : <>Drag a photo here or <span className="font-medium text-fg underline underline-offset-4">browse</span></>}</p>
               <p className="text-xs text-fg-muted">PNG or JPG, up to 10MB</p>
-              <input id="photo" type="file" accept="image/*" className="sr-only" onChange={handlePhotoChange} required />
+              <input id="photo" type="file" accept="image/png,image/jpeg" className="sr-only" onChange={handlePhotoChange} />
             </label>
           </section>
 

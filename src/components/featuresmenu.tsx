@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 const items = [
   {
     label: "Image search",
@@ -40,7 +42,7 @@ const items = [
   },
 ];
 
-function FeaturesMenu() {
+function FeaturesMenu({ onNavigate }: { onNavigate: () => void }) {
   return (
     <div className="absolute inset-x-0 top-full border-b border-border bg-surface shadow-xl">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 sm:px-6 md:grid-cols-[220px_1fr] lg:px-8">
@@ -59,6 +61,7 @@ function FeaturesMenu() {
               <a
                 key={item.label}
                 href="#features"
+                onClick={onNavigate}
                 className="group flex flex-col gap-3 bg-surface p-5 transition-colors hover:bg-bg-soft"
               >
                 <div className="flex items-center justify-between">
@@ -97,6 +100,7 @@ function FeaturesMenu() {
 
           <a
             href="#features"
+            onClick={onNavigate}
             className="mt-px flex items-center justify-between border border-t-0 border-border bg-surface px-5 py-4 text-sm font-medium transition-colors hover:bg-bg-soft"
           >
             View all features
@@ -118,9 +122,9 @@ function FeaturesMenu() {
 
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 text-sm sm:px-6 lg:px-8">
-          <a href="#get-started" className="font-medium text-accent">
+          <Link to="/register" className="font-medium text-accent">
             Get started →
-          </a>
+          </Link>
           <span className="font-mono text-xs text-fg-muted">
             findora / campus lost &amp; found
           </span>

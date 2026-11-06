@@ -1,10 +1,15 @@
 const labels: Record<string, string> = {
   matched: "Possible match",
+  claimed: "Awaiting pickup",
+  awaiting_pickup: "Awaiting pickup",
+  collected: "Collected",
+  closed: "Closed",
+  officer: "Officer",
 };
 
 function statusClass(status: string) {
-  if (status === "matched" || status === "approved") return "border-accent text-accent";
-  if (["resolved", "rejected", "suspended", "closed"].includes(status)) return "border-border text-fg-muted";
+  if (["matched", "approved", "claimed", "awaiting_pickup"].includes(status)) return "border-accent text-accent";
+  if (["resolved", "rejected", "suspended", "closed", "collected"].includes(status)) return "border-border text-fg-muted";
   return "border-fg text-fg";
 }
 

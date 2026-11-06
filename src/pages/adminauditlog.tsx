@@ -57,6 +57,7 @@ function AdminAuditLog() {
               <div key={entry.id} className="flex items-center justify-between gap-4 border-b border-border py-4">
                 <div className="min-w-0">
                   <p className="text-sm">{entry.action}</p>
+                  {entry.details && <p className="mt-0.5 text-xs text-fg-muted">{entry.details}</p>}
                   <p className="mt-0.5 text-xs text-fg-muted">
                     Admin — {entry.admin_name} ·{" "}
                     <span className="font-mono text-[10px] tracking-widest uppercase">{entry.target_type}</span>

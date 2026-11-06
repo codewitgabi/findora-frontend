@@ -1,8 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { getAccessToken, getCurrentUser, refreshCurrentUser } from "../lib/auth";
+import { getAccessToken, getCurrentUser, isStaff, refreshCurrentUser } from "../lib/auth";
 
-function RequireAuth({ children, role }: { children: ReactNode; role?: "admin" }) {
+/** `staff` admits admins and lost-property officers; `admin` admits admins only. */
+function RequireAuth({ children, role }: { children: ReactNode; role?: "admin" | "staff" }) {
   const location = useLocation();
   const [knownRole, setKnownRole] = useState(getCurrentUser()?.role);
   const hasToken = Boolean(getAccessToken());
@@ -36,7 +37,8 @@ function RequireAuth({ children, role }: { children: ReactNode; role?: "admin" }
         </div>
       );
     }
-    if (knownRole !== role) return <Navigate to="/dashboard" replace />;
+    const allowed = role === "staff" ? isStaff(knownRole) : knownRole === role;
+    if (!allowed) return <Navigate to={isStaff(knownRole) ? "/admin" : "/dashboard"} replace />;
   }
 
   return children;
