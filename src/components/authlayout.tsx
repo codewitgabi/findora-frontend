@@ -57,7 +57,7 @@ function AuthLayout({
         </div>
 
         <p className="relative font-mono text-xs text-fg-muted">
-          FINDORA / CAMPUS LOST &amp; FOUND
+          AFUSTA-FINDORA / CAMPUS LOST &amp; FOUND
         </p>
       </div>
 

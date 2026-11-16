@@ -126,7 +126,7 @@ function FeaturesMenu({ onNavigate }: { onNavigate: () => void }) {
             Get started →
           </Link>
           <span className="font-mono text-xs text-fg-muted">
-            findora / campus lost &amp; found
+            afusta-findora / campus lost &amp; found
           </span>
         </div>
       </div>

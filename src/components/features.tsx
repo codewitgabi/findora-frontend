@@ -96,7 +96,7 @@ function Features() {
             Everything a campus needs, in one system.
           </h2>
           <p className="mt-4 text-lg text-fg-muted">
-            Findora pairs structured reporting with visual search so matches
+            AFUSTA-FINDORA pairs structured reporting with visual search so matches
             surface faster — and a controlled claim process keeps recovery
             honest.
           </p>

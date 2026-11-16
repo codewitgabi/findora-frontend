@@ -18,8 +18,8 @@ function Logo({ to = "/" }: { to?: string }) {
           <path d="m21 21-4.3-4.3" />
         </svg>
       </span>
-      <span className="font-mono text-sm font-bold tracking-widest uppercase">
-        Findora
+      <span className="font-mono text-sm font-bold tracking-wider whitespace-nowrap uppercase sm:tracking-widest">
+        AFUSTA-FINDORA
       </span>
     </Link>
   );

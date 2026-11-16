@@ -8,7 +8,7 @@ function Cta() {
           For campuses
         </p>
         <h2 className="mx-auto mt-3 max-w-xl text-4xl font-bold tracking-tight sm:text-5xl">
-          Bring Findora to your campus.
+          Bring AFUSTA-FINDORA to your campus.
         </h2>
         <p className="mx-auto mt-4 max-w-lg text-lg text-fg-muted">
           Give students and staff a faster, more reliable way to report and

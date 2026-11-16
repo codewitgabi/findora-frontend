@@ -40,8 +40,8 @@ function Navbar() {
               <path d="m21 21-4.3-4.3" />
             </svg>
           </span>
-          <span className="font-mono text-sm font-bold uppercase tracking-widest">
-            Findora
+          <span className="font-mono text-sm font-bold whitespace-nowrap uppercase tracking-wider sm:tracking-widest">
+            AFUSTA-FINDORA
           </span>
         </a>
 

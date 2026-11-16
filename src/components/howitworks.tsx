@@ -16,7 +16,7 @@ function BrowserFrame({ label, children }: { label: string; children: ReactNode 
 
 function ReportMockup() {
   return (
-    <BrowserFrame label="report-item.findora.app">
+    <BrowserFrame label="report-item.afusta-findora.app">
       <div className="space-y-3">
         {[
           { label: "Item name", value: "Black backpack" },
@@ -159,7 +159,7 @@ const steps = [
     step: "02",
     title: "Upload a photo",
     description:
-      "Add a clear image if you have one. Findora extracts its visual features for matching.",
+      "Add a clear image if you have one. AFUSTA-FINDORA extracts its visual features for matching.",
     mockup: UploadMockup,
   },
   {
